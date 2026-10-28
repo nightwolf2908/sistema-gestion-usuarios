@@ -1,6 +1,6 @@
 # UserHub
 
-**UserHub** es una aplicación web para el registro, autenticación y consulta de usuarios. Se desarrolló como proyecto académico y se ejecuta mediante contenedores Docker, con una arquitectura que separa frontend, API, base de datos y servicios de monitoreo.
+**UserHub** es una aplicación web para el registro, autenticación y consulta de usuarios. Se desarrolló como proyecto académico y se ejecuta mediante contenedores Docker, con una arquitectura que separa frontend, API, base de datos y servicios de monitoreo. (Se agrego una segunda rama donde poder probar mas funcionalidades, y en un futuro hacer un merge con pull request)
 
 ## Funcionalidades
 
@@ -63,7 +63,7 @@ Nginx + React
    cd userhub
    ```
 
-2. Configura el archivo `.env` con las variables requeridas por `docker-compose.yaml` y el backend, checa .env.example, puedes generar contraseñas con openssl rand -hex 64. No subas este archivo a Git. Para Grafana, incluye `GRAFANA_ADMIN_PASSWORD` con una contraseña segura.
+2. Configura el archivo `.env` con las variables requeridas por `docker-compose.yaml` y el backend, checa .env.example, puedes generar contraseñas con openssl rand -hex 64. Para Grafana, incluye `GRAFANA_ADMIN_PASSWORD` con una contraseña segura.
 
 3. Comprueba la configuración e inicia los servicios:
 
