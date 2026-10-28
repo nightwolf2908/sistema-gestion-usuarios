@@ -27,6 +27,7 @@
 | Proxy inverso | Traefik |
 | Métricas | Prometheus |
 | Dashboards | Grafana |
+| Github Actions | 
 
 ## Arquitectura
 

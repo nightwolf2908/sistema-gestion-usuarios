@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -33,46 +34,50 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [form, setForm] = useState<FormData>(initialForm);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [token, setToken] = useState<string | null>(null); 
+  const [token, setToken] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+
   const loadUsers = useCallback(async (accessToken: string) => {
-   try {
-    const response = await fetch("/api/v1/users", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    setLoading(true);
 
-    if (!response.ok) {
-      throw new Error("No se pudieron cargar los usuarios");
+    try {
+      const response = await fetch("/api/v1/users", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar los usuarios");
+      }
+
+      const data: User[] = await response.json();
+      setUsers(data);
+      setError("");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error desconocido"
+      );
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    const data: User[] = await response.json();
-    setUsers(data);
-    setError("");
-  } catch (err) {
-    setError(
-      err instanceof Error ? err.message : "Error desconocido"
-    );
-  } finally {
-    setLoading(false);
-  }
-}, []);
-
- useEffect(() => {
-   if (token) {
-     void loadUsers(token);
-   } else {
-     setUsers([]);
-     setLoading(false);
-   }
- }, [token, loadUsers]); 
+  useEffect(() => {
+    if (token) {
+      void loadUsers(token);
+    } else {
+      setUsers([]);
+      setLoading(false);
+    }
+  }, [token, loadUsers]);
 
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -84,7 +89,9 @@ export default function App() {
     );
   }, [users, search]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function registerUser(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     if (saving) return;
@@ -110,13 +117,21 @@ export default function App() {
         throw new Error("No fue posible registrar el usuario");
       }
 
+      const registeredEmail = form.email;
+
       setForm(initialForm);
-      setSuccess("Usuario registrado correctamente");
+
       if (!token) {
-        throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
-          }
-      
-      await loadUsers(token);
+        setLoginEmail(registeredEmail);
+        setLoginPassword("");
+        setAuthMode("login");
+        setSuccess(
+          "Cuenta creada correctamente. Ahora inicia sesión."
+        );
+      } else {
+        setSuccess("Usuario registrado correctamente");
+        await loadUsers(token);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error desconocido"
@@ -125,13 +140,15 @@ export default function App() {
       setSaving(false);
     }
   }
-  
+
   async function handleLogin(
     event: React.FormEvent<HTMLFormElement>
-) {
+  ) {
     event.preventDefault();
+
     setAuthLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       const response = await fetch("/api/v1/auth/login", {
@@ -156,7 +173,6 @@ export default function App() {
 
       setToken(data.access_token);
       setLoginPassword("");
-      setLoading(true);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error de autenticación"
@@ -165,72 +181,275 @@ export default function App() {
       setAuthLoading(false);
     }
   }
- if (!token) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-blue-400">
-            UserHub
-          </h1>
-          <p className="mt-2 text-slate-400">
-            Inicia sesión para administrar usuarios
-          </p>
+
+  function logout() {
+    setToken(null);
+    setUsers([]);
+    setError("");
+    setSuccess("");
+    setAuthMode("login");
+  }
+
+  function changeAuthMode(mode: "login" | "register") {
+    setAuthMode(mode);
+    setError("");
+    setSuccess("");
+  }
+
+  function renderRegistrationForm() {
+    return (
+      <form onSubmit={registerUser} className="space-y-5">
+        <div>
+          <label
+            htmlFor="register-name"
+            className="mb-2 block text-sm text-slate-300"
+          >
+            Nombre completo
+          </label>
+          <input
+            id="register-name"
+            required
+            minLength={2}
+            maxLength={100}
+            value={form.name}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                name: event.target.value,
+              }))
+            }
+            placeholder="Ej. Ana García"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+          />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label htmlFor="login-email" className="mb-2 block text-sm">
-              Correo electrónico
-            </label>
-            <input
-              id="login-email"
-              type="email"
-              required
-              autoComplete="username"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="register-email"
+            className="mb-2 block text-sm text-slate-300"
+          >
+            Correo electrónico
+          </label>
+          <input
+            id="register-email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                email: event.target.value,
+              }))
+            }
+            placeholder="usuario@ejemplo.com"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+          />
+        </div>
 
-          <div>
-            <label htmlFor="login-password" className="mb-2 block text-sm">
-              Contraseña
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="register-password"
+            className="mb-2 block text-sm text-slate-300"
+          >
+            Contraseña
+          </label>
+          <input
+            id="register-password"
+            type="password"
+            required
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(event) =>
+              setForm((previous) => ({
+                ...previous,
+                password: event.target.value,
+              }))
+            }
+            placeholder="Mínimo 8 caracteres"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
+          />
+        </div>
 
-          {error && (
-            <p role="alert" className="text-sm text-red-400">
-              {error}
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+
+        {success && (
+          <p role="status" className="text-sm text-emerald-400">
+            {success}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-semibold hover:bg-blue-500 disabled:opacity-50"
+        >
+          {saving ? (
+            <LoaderCircle className="animate-spin" size={18} />
+          ) : (
+            <Plus size={18} />
+          )}
+          {saving ? "Registrando..." : "Crear cuenta"}
+        </button>
+      </form>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-white">
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
+          <div className="mb-8 text-center">
+            <div className="mb-4 flex justify-center">
+              <div className="rounded-xl bg-blue-600 p-3">
+                <Users size={28} />
+              </div>
+            </div>
+
+            <h1 className="text-3xl font-bold text-blue-400">
+              UserHub
+            </h1>
+
+            <p className="mt-2 text-slate-400">
+              Plataforma de administración de usuarios
             </p>
+          </div>
+
+          <div className="mb-7 grid grid-cols-2 gap-2 rounded-xl bg-slate-950 p-1">
+            <button
+              type="button"
+              onClick={() => changeAuthMode("login")}
+              className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${
+                authMode === "login"
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Iniciar sesión
+            </button>
+
+            <button
+              type="button"
+              onClick={() => changeAuthMode("register")}
+              className={`rounded-lg px-3 py-3 text-sm font-semibold transition ${
+                authMode === "register"
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Crear cuenta
+            </button>
+          </div>
+
+          {authMode === "register" ? (
+            <>
+              <h2 className="mb-5 text-lg font-semibold">
+                Registra tu cuenta
+              </h2>
+              {renderRegistrationForm()}
+            </>
+          ) : (
+            <>
+              <h2 className="mb-5 text-lg font-semibold">
+                Bienvenido de nuevo
+              </h2>
+
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div>
+                  <label
+                    htmlFor="login-email"
+                    className="mb-2 block text-sm"
+                  >
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    required
+                    autoComplete="username"
+                    value={loginEmail}
+                    onChange={(event) =>
+                      setLoginEmail(event.target.value)
+                    }
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="login-password"
+                    className="mb-2 block text-sm"
+                  >
+                    Contraseña
+                  </label>
+                  <input
+                    id="login-password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={loginPassword}
+                    onChange={(event) =>
+                      setLoginPassword(event.target.value)
+                    }
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
+                  />
+                </div>
+
+                {error && (
+                  <p role="alert" className="text-sm text-red-400">
+                    {error}
+                  </p>
+                )}
+
+                {success && (
+                  <p
+                    role="status"
+                    className="flex items-center gap-2 text-sm text-emerald-400"
+                  >
+                    <CheckCircle2 size={16} />
+                    {success}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full rounded-lg bg-blue-600 p-3 font-semibold hover:bg-blue-500 disabled:opacity-50"
+                >
+                  {authLoading ? "Ingresando..." : "Iniciar sesión"}
+                </button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-slate-400">
+                ¿No tienes una cuenta?{" "}
+                <button
+                  type="button"
+                  onClick={() => changeAuthMode("register")}
+                  className="font-semibold text-blue-400 hover:text-blue-300"
+                >
+                  Regístrate aquí
+                </button>
+              </p>
+            </>
           )}
 
-          <button
-            type="submit"
-            disabled={authLoading}
-            className="w-full rounded-lg bg-blue-600 p-3 font-semibold hover:bg-blue-500 disabled:opacity-50"
-          >
-            {authLoading ? "Ingresando..." : "Iniciar sesión"}
-          </button>
-        </form>
+          <div className="mt-7 flex items-center justify-center gap-2 text-xs text-slate-500">
+            <ShieldCheck size={16} className="text-emerald-400" />
+            Contraseñas protegidas con Argon2
+          </div>
+        </div>
       </div>
-    </div>
-  );
-}  
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/70">
-
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-blue-600 p-2.5">
@@ -246,20 +465,16 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                setToken(null);
-                setUsers([]);
-                setError("");
-                setSuccess("");
-              }}
+              onClick={logout}
               className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
             >
               Cerrar sesión
             </button>
-          <span className="flex items-center gap-2 rounded-full border border-emerald-800 bg-emerald-950 px-3 py-1 text-xs text-emerald-300">
-            <Activity size={14} />
-            Demo local
-          </span>
+
+            <span className="flex items-center gap-2 rounded-full border border-emerald-800 bg-emerald-950 px-3 py-1 text-xs text-emerald-300">
+              <Activity size={14} />
+              Demo local
+            </span>
           </div>
         </div>
       </header>
@@ -316,7 +531,7 @@ export default function App() {
               </h3>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={registerUser} className="space-y-5">
               <div>
                 <label
                   htmlFor="name"
@@ -331,7 +546,10 @@ export default function App() {
                   maxLength={100}
                   value={form.name}
                   onChange={(event) =>
-                    setForm({ ...form, name: event.target.value })
+                    setForm({
+                      ...form,
+                      name: event.target.value,
+                    })
                   }
                   placeholder="Ej. Ana García"
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
@@ -351,7 +569,10 @@ export default function App() {
                   required
                   value={form.email}
                   onChange={(event) =>
-                    setForm({ ...form, email: event.target.value })
+                    setForm({
+                      ...form,
+                      email: event.target.value,
+                    })
                   }
                   placeholder="usuario@ejemplo.com"
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
@@ -374,7 +595,10 @@ export default function App() {
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(event) =>
-                    setForm({ ...form, password: event.target.value })
+                    setForm({
+                      ...form,
+                      password: event.target.value,
+                    })
                   }
                   placeholder="Mínimo 8 caracteres"
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-blue-500"
@@ -451,10 +675,14 @@ export default function App() {
                     <th className="px-6 py-4">Registro</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={3} className="px-6 py-10 text-center">
+                      <td
+                        colSpan={3}
+                        className="px-6 py-10 text-center"
+                      >
                         Cargando usuarios...
                       </td>
                     </tr>
@@ -480,9 +708,9 @@ export default function App() {
                           {user.email}
                         </td>
                         <td className="px-6 py-4 text-slate-400">
-                          {new Date(user.created_at).toLocaleDateString(
-                            "es-MX"
-                          )}
+                          {new Date(
+                            user.created_at
+                          ).toLocaleDateString("es-MX")}
                         </td>
                       </tr>
                     ))
