@@ -37,30 +37,42 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [token, setToken] = useState<string | null>(null); 
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const loadUsers = useCallback(async (accessToken: string) => {
+   try {
+    const response = await fetch("/api/v1/users", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const response = await fetch("/api/v1/users");
-
-      if (!response.ok) {
-        throw new Error("No se pudieron cargar los usuarios");
-      }
-
-      const data: User[] = await response.json();
-      setUsers(data);
-      setError("");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Error desconocido"
-      );
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error("No se pudieron cargar los usuarios");
     }
-  }, []);
 
-  useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
+    const data: User[] = await response.json();
+    setUsers(data);
+    setError("");
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Error desconocido"
+    );
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
+ useEffect(() => {
+   if (token) {
+     void loadUsers(token);
+   } else {
+     setUsers([]);
+     setLoading(false);
+   }
+ }, [token, loadUsers]); 
 
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase().trim();
@@ -100,7 +112,11 @@ export default function App() {
 
       setForm(initialForm);
       setSuccess("Usuario registrado correctamente");
-      await loadUsers();
+      if (!token) {
+        throw new Error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+          }
+      
+      await loadUsers(token);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error desconocido"
@@ -109,10 +125,112 @@ export default function App() {
       setSaving(false);
     }
   }
+  
+  async function handleLogin(
+    event: React.FormEvent<HTMLFormElement>
+) {
+    event.preventDefault();
+    setAuthLoading(true);
+    setError("");
 
+    try {
+      const response = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Correo o contraseña incorrectos");
+      }
+
+      const data: {
+        access_token: string;
+        token_type: string;
+      } = await response.json();
+
+      setToken(data.access_token);
+      setLoginPassword("");
+      setLoading(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Error de autenticación"
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+ if (!token) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold text-blue-400">
+            UserHub
+          </h1>
+          <p className="mt-2 text-slate-400">
+            Inicia sesión para administrar usuarios
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label htmlFor="login-email" className="mb-2 block text-sm">
+              Correo electrónico
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              required
+              autoComplete="username"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="login-password" className="mb-2 block text-sm">
+              Contraseña
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-400">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={authLoading}
+            className="w-full rounded-lg bg-blue-600 p-3 font-semibold hover:bg-blue-500 disabled:opacity-50"
+          >
+            {authLoading ? "Ingresando..." : "Iniciar sesión"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}  
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/70">
+
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-blue-600 p-2.5">
@@ -126,10 +244,23 @@ export default function App() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setToken(null);
+                setUsers([]);
+                setError("");
+                setSuccess("");
+              }}
+              className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800"
+            >
+              Cerrar sesión
+            </button>
           <span className="flex items-center gap-2 rounded-full border border-emerald-800 bg-emerald-950 px-3 py-1 text-xs text-emerald-300">
             <Activity size={14} />
             Demo local
           </span>
+          </div>
         </div>
       </header>
 

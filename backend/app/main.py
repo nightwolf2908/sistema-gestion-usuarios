@@ -2,9 +2,18 @@ import json
 import os
 from contextlib import asynccontextmanager
 
+from fastapi import Security
+
+from .schemas import UserLogin, TokenResponse
+from .security import (
+    get_current_user,
+    hash_password,
+    verify_password,
+    create_access_token,
+)
+
 import redis
 from fastapi import Depends, FastAPI, HTTPException, status
-from pwdlib import PasswordHash
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,7 +22,6 @@ from .database import Base, engine, get_db
 from .models import User
 from .schemas import UserCreate, UserResponse
 
-password_hasher = PasswordHash.recommended()
 
 cache = redis.Redis.from_url(
     os.environ["REDIS_URL"],
@@ -71,9 +79,7 @@ def create_user(
     user = User(
         name=payload.name.strip(),
         email=str(payload.email).lower(),
-        password_hash=password_hasher.hash(
-            payload.password
-        ),
+        password_hash=hash_password(payload.password),
     )
 
     db.add(user)
@@ -102,7 +108,10 @@ def create_user(
     "/api/v1/users",
     response_model=list[UserResponse],
 )
-def list_users(db: Session = Depends(get_db)):
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user), 
+    ):
     try:
         cached = cache.get(CACHE_KEY)
         if cached:
@@ -140,6 +149,7 @@ def list_users(db: Session = Depends(get_db)):
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     user = db.get(User, user_id)
 
@@ -150,3 +160,31 @@ def get_user(
         )
 
     return user
+
+@app.post(
+    "/api/v1/auth/login",
+    response_model=TokenResponse,
+)
+def login(
+    credentials: UserLogin,
+    db: Session = Depends(get_db),
+):
+    user = db.scalar(
+        select(User).where(
+            User.email == str(credentials.email).lower()
+        )
+    )
+
+    if user is None or not verify_password(
+        credentials.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = create_access_token(user.id)
+
+    return TokenResponse(access_token=token)
