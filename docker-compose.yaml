@@ -1,6 +1,19 @@
 name: userhub
 
 services:
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "127.0.0.1:80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -38,6 +51,8 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+    volumes:
+      - ./backend/alembic:/app/alembic 
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -52,6 +67,11 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.userhub.rule=Host(`userhub.localhost`)"
+      - "traefik.http.routers.userhub.entrypoints=web"
+      - "traefik.http.services.userhub.loadbalancer.server.port=80"
     depends_on:
       - backend
 
