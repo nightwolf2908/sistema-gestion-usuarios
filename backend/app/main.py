@@ -1,7 +1,7 @@
 import json
 import os
 from contextlib import asynccontextmanager
-
+from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi import Security
 
 from .schemas import UserLogin, TokenResponse
@@ -48,6 +48,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+Instrumentator(
+    should_group_status_codes=False,
+    excluded_handlers=["/metrics"],
+).instrument(app).expose(
+    app,
+    endpoint="/metrics",
+    include_in_schema=False,
+)
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
