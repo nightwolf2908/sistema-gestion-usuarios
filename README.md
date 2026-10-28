@@ -59,11 +59,11 @@ Nginx + React
 1. Clona el repositorio y entra en su carpeta:
 
    ```bash
-   git clone <URL-DE-TU-REPOSITORIO>
+   git clone https://
    cd userhub
    ```
 
-2. Configura el archivo `.env` con las variables requeridas por `docker-compose.yaml` y el backend. No subas este archivo a Git. Para Grafana, incluye `GRAFANA_ADMIN_PASSWORD` con una contraseña segura.
+2. Configura el archivo `.env` con las variables requeridas por `docker-compose.yaml` y el backend, checa .env.example, puedes generar contraseñas con openssl rand -hex 64. No subas este archivo a Git. Para Grafana, incluye `GRAFANA_ADMIN_PASSWORD` con una contraseña segura.
 
 3. Comprueba la configuración e inicia los servicios:
 
@@ -78,7 +78,7 @@ Nginx + React
    docker compose ps
    ```
 
-> Si tu entorno no resuelve automáticamente `userhub.localhost`, revisa la resolución local de ese nombre. Los puertos publicados en `127.0.0.1` solo son accesibles desde la propia computadora.
+> Si tu entorno no resuelve automáticamente `userhub.localhost`, revisa la resolución local de ese nombre. Los puertos publicados en `127.0.0.1` solo son accesibles desde la propia computadora. Tambien, espera un minuto a que los contenedores se levanten del todo.
 
 ## Accesos locales
 
@@ -90,7 +90,7 @@ Nginx + React
 | Métricas de FastAPI | http://127.0.0.1:8000/metrics |
 | Prometheus | http://127.0.0.1:9090 |
 | Grafana | http://127.0.0.1:3000 |
-
+> Para acceder a grafana pones admin y tu contraseña que pusiste en el archivo .env.
 ## API
 
 | Método | Ruta | Descripción |
