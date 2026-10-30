@@ -1,9 +1,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { InputHTMLAttributes } from "react";
 import {
   Activity,
   CheckCircle2,
   Database,
+  Eye,
+  EyeOff,
   LoaderCircle,
   Plus,
   Search,
@@ -29,6 +32,32 @@ const initialForm: FormData = {
   email: "",
   password: "",
 };
+
+function PasswordInput({
+  className = "",
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        {...props}
+        type={visible ? "text" : "password"}
+        className={`${className} pr-12`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((previous) => !previous)}
+        aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+        aria-controls={props.id}
+        className="absolute inset-y-0 right-0 flex items-center rounded-r-lg px-3 text-slate-400 hover:text-white focus-visible:outline-2 focus-visible:outline-blue-500"
+      >
+        {visible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
 
 export default function App() {
   const [users, setUsers] = useState<User[]>([]);
@@ -253,9 +282,8 @@ export default function App() {
           >
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="register-password"
-            type="password"
             required
             minLength={8}
             maxLength={128}
@@ -387,9 +415,8 @@ export default function App() {
                   >
                     Contraseña
                   </label>
-                  <input
+                  <PasswordInput
                     id="login-password"
-                    type="password"
                     required
                     autoComplete="current-password"
                     value={loginPassword}
@@ -586,9 +613,8 @@ export default function App() {
                 >
                   Contraseña
                 </label>
-                <input
+                <PasswordInput
                   id="password"
-                  type="password"
                   required
                   minLength={8}
                   maxLength={128}
