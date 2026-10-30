@@ -147,14 +147,6 @@ userhub/
 └── README.md
 ```
 
-## Pendientes y mejoras futuras
-
-- Aprovisionar automáticamente Grafana y su fuente de datos.
-- Incorporar pruebas automatizadas del backend y frontend.
-- Revisar autorización y privacidad en la consulta de usuarios.
-- Preparar HTTPS y controles de seguridad para un despliegue público.
-- Elaborar el informe académico y el video demostrativo del proyecto.
-
 ## Propósito
 
 Proyecto académico orientado a demostrar el desarrollo de una aplicación web funcional y la integración de herramientas de contenedorización, proxy inverso y observabilidad.
